@@ -66,3 +66,4 @@ Desktop.ini
 # Project specific
 backend/data/*.xlsx
 !backend/data/.gitkeep
+.pids/

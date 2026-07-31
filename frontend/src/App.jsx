@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { fetchPoints, fetchStats, fetchSpecies } from './api';
 import CicadaMap from './components/CicadaMap.jsx';
 import Sidebar from './components/Sidebar.jsx';
+import RegionNavigator from './components/RegionNavigator.jsx';
 import { IconMenu, IconX } from './components/Icons.jsx';
 
 export default function App() {
@@ -11,14 +12,27 @@ export default function App() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [region, setRegion] = useState({
+    province: '', city: '', district: '', town: '',
+  });
   const mapApi = useRef(null);
 
   const handleReady = useCallback((api) => { mapApi.current = api; }, []);
 
-  const load = useCallback(() => {
+  const load = useCallback((r = {}) => {
     setLoading(true);
     setError(null);
-    Promise.all([fetchPoints(), fetchStats(), fetchSpecies()])
+    const params = {};
+    if (r.province) params.province = r.province;
+    if (r.city) params.city = r.city;
+    if (r.district) params.district = r.district;
+    if (r.town) params.town = r.town;
+    Promise.all([
+      fetchPoints(params),
+      fetchStats(params),
+      fetchSpecies(),
+    ])
       .then(([p, s, sp]) => {
         setPoints(p);
         setStats(s);
@@ -28,11 +42,16 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(region); }, [region, load]);
 
   const onSelect = (pt) => {
     if (mapApi.current) mapApi.current.flyTo(pt);
-    if (drawerOpen) setDrawerOpen(false); // 移动端选中后收起抽屉
+    if (drawerOpen) setDrawerOpen(false);
+    setSelected(pt);
+  };
+
+  const resetRegion = () => {
+    setRegion({ province: '', city: '', district: '', town: '' });
   };
 
   return (
@@ -43,12 +62,23 @@ export default function App() {
         points={points}
         loading={loading}
         error={error}
-        onRetry={load}
+        onRetry={() => load(region)}
         onSelect={onSelect}
         onClose={() => setDrawerOpen(false)}
+        region={region}
+        onResetRegion={resetRegion}
+        selected={selected}
+        onClearDetail={() => setSelected(null)}
       />
-      <div className="map-wrap">
-        <CicadaMap points={points} onReady={handleReady} />
+      <div className="main-area">
+        <RegionNavigator
+          region={region}
+          setRegion={setRegion}
+          onSelectPoint={onSelect}
+        />
+          <div className="map-wrap">
+            <CicadaMap points={points} region={region} onReady={handleReady} onSelectPoint={onSelect} />
+          </div>
       </div>
 
       <div className="backdrop" onClick={() => setDrawerOpen(false)} />
